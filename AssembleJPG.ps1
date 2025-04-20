@@ -112,7 +112,8 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 $prefix = "WebToon"                 # Préfixe des fichiers à assembler
 $maxHeight = 65000                  # Défini la hauteur max des assemblages (au delà de 65000 pixels plantage limite du format JPG)
 $transihaut = 30                    # hauteur en ligne de la zone de transition a conservé
-$tauxvariahorizontal = 16           # Tolérance de variation des couleurs pour la détection d'une ligne de transition (en cas de mauvais qualité de l'image il faut l'augmenté ex: 36)
+$tauxvariahorizontal = 6            # Tolérance de variation des couleurs pour la détection d'une ligne de transition (en cas de mauvais qualité de l'image il faut l'augmenté ex: 36)
+$pasrecherche = 5                   # Pas d'analyse si = 1 toutes les lignes si 2 une ligne sur 2 si 3 une ligne sur 3 etc...
 $global:nbexclu = 5                 # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition (Certaine image on des bordures noires ou blanches)
 #
 # Variables internes du script (ne pas modifier)
@@ -758,10 +759,10 @@ function ProcImage { param ( [string]$imagePath )
     function DetectTransitions {
         param ( [System.Drawing.Bitmap]$bitmap, [int]$startY )
         $transitions = @()
-        for ($y = $startY; $y -lt $bitmap.Height; $y++) {
+        for ($y = $startY; $y -lt $bitmap.Height; $y += $pasrecherche) { # $pasrecherche est la hauteur de la ligne de transition
             $lineColor = $bitmap.GetPixel($global:nbexclu, $y) # Commence à $global:nbexclu pixels à droite pour éviter les bords
             $isTransition = $true
-            for ($x = ($global:nbexclu); $x -lt ($bitmap.Width - $global:nbexclu); $x++) {  # Finit $global:nbexclu pixels à gauche pour éviter les bords
+            for ($x = ($global:nbexclu); $x -lt ($bitmap.Width - $global:nbexclu); $x += $pasrecherche) {  # Finit $global:nbexclu pixels à gauche pour éviter les bords
                 $pixelColor = $bitmap.GetPixel($x, $y)
                 if (-not ($pixelColor.R -le ($lineColor.R + $tauxvariahorizontal * 2.55) -and $pixelColor.R -ge ($lineColor.R - $tauxvariahorizontal * 2.55) -and
                           $pixelColor.G -le ($lineColor.G + $tauxvariahorizontal * 2.55) -and $pixelColor.G -ge ($lineColor.G - $tauxvariahorizontal * 2.55) -and
@@ -773,7 +774,7 @@ function ProcImage { param ( [string]$imagePath )
                 $barbitmapt = ($bitmap.Height)
                 while ($y + 1 -lt $bitmap.Height) { $nextLineColor = $bitmap.GetPixel($global:nbexclu, $y + 1)# Commence à $global:nbexclu pixels à droite pour éviter les bords
                     $isNextLineTransition = $true
-                    for ($x = ($global:nbexclu); $x -lt ($bitmap.Width - $global:nbexclu); $x++) { # Finit $global:nbexclu pixels à gauche pour éviter les bords
+                    for ($x = ($global:nbexclu); $x -lt ($bitmap.Width - $global:nbexclu); $x += $pasrecherche) { # Finit $global:nbexclu pixels à gauche pour éviter les bords
                         $pixelColor = $bitmap.GetPixel($x, $y + 1)
                         if (-not ($pixelColor.R -le ($nextLineColor.R + $tauxvariahorizontal * 2.55) -and $pixelColor.R -ge ($nextLineColor.R - $tauxvariahorizontal * 2.55) -and
                                   $pixelColor.G -le ($nextLineColor.G + $tauxvariahorizontal * 2.55) -and $pixelColor.G -ge ($nextLineColor.G - $tauxvariahorizontal * 2.55) -and
