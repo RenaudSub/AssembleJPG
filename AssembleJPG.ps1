@@ -111,13 +111,12 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 # Variables modifiable par l'utilisateur :
 $prefix = "WebToon"                 # Préfixe des fichiers à assembler
 $maxHeight = 65000                  # Défini la hauteur max des assemblages (au delà de 65000 pixels plantage limite du format JPG)
-$transihaut = 30                    # hauteur en ligne de la zone de transition a conservé
+$transihaut = 50                    # Hauteur de la zone de transition à conserver (en pixels) entre les images assemblées                       
 $tauxvariahorizontal = 6            # Tolérance de variation des couleurs pour la détection d'une ligne de transition (en cas de mauvais qualité de l'image il faut l'augmenté ex: 36)
 $pasrecherche = 5                   # Pas d'analyse si = 1 toutes les lignes si 2 une ligne sur 2 si 3 une ligne sur 3 etc...
 $global:nbexclu = 5                 # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition (Certaine image on des bordures noires ou blanches)
-#
+$global:nbexclu2 = 80              # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition dans le module d'assemblage uniquement
 # Variables internes du script (ne pas modifier)
-#
 $datestart = Get-Date               # Date de démarrage du script pour les stats à la fin
 $checkMark = [char]0x2705           # Check Mark Unicode
 $global:barnbimg = 1                # Variable interne global pour la barre de progression entre les différentes fonctions
@@ -131,12 +130,12 @@ Write-Host "                            /_/   \_\___/___/\___|_| |_| |_|_.__/|_|
 Write-Host "                                                                "
 Write-Host "                  Script de conversion des images .webp .png .jpeg en .jpg , Uniformisation des largeurs" -ForegroundColor cyan
 Write-Host "            d'images, des dpi et de l'espace entre les scènes, renommages zéro padding et assemblage vertical" -ForegroundColor cyan
-Write-Host "                             v3.2 du 25.03.2025 par SUBRINI Renaud (renaudsub@free.fr)" -ForegroundColor yellow
+Write-Host "                             v3.2 du 25.03.2025 par SUBRINI Renaud (contact@infosub.fr)" -ForegroundColor yellow
 Write-Host "──────────────────────────────────────────────────────────────────────────────────────────────────────────────────" -ForegroundColor darkgray
 # Charger les assembly
 Add-Type -AssemblyName System.Drawing
 Add-Type -AssemblyName System.Windows.Forms
-# Affiche une progressbar personnalisable
+# Affiche une progressbar personalisable
 function BarProgress {param ([int]$barLength,[int]$barprog,[int]$bartotal,[string]$bartext1,[string]$bartext2,[string]$bartext3,[int]$barcolor,[int]$barlargmax)
     try{if ($barlargmax -eq "" -or $null -eq $barlargmax) { $barlargMax = 115 }
         if ($bartotal -ne "" -or $null -ne $bartotal) { if ($barcolor -ne "5") {$barlargmax = $barlargMax - $barLength}} else {$barlargmax = 10}       
@@ -656,7 +655,7 @@ if ($reducespac) { Write-Host "Démarrage de l'uniformisation des transitions su
 # Initialiser les variables pour l'assemblage
 $images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" | Sort-Object Name
 $currentHeight = 0
-#$maxHeight = 65000
+$maxRollback = 6
 $global:countfilebar3 = ($images.Count)
 $assemblageIndex = 1
 $assemblageImages = @()
@@ -666,57 +665,81 @@ write-Host " pixels" -ForegroundColor white
 Write-Host ""
 Write-Host "           Taux de remplissage          " -ForegroundColor white -BackgroundColor green -NoNewline
 Write-Host "  Num.                     Nom ori.  Nouv. Dim.     Nom :                   " -ForegroundColor white -BackgroundColor green -NoNewline
-#                                       N       N              N───────────────────────
 Write-Host "" -ForegroundColor White -BackgroundColor black
-foreach ($image in $images) {# Charger l'image
+foreach ($image in $images) {
     $img = [System.Drawing.Image]::FromFile($image.FullName)
-    # Vérifier si l'ajout de l'image dépasse la hauteur maximale
-    if ($currentHeight + $img.Height -gt $maxHeight) {
-        # Trouver la ligne de transition pour couper l'image
-        $cutLine = Find-TransitionLine -image $img -currentHeight $currentHeight -maxHeight $maxHeight
-        if ($null -ne $cutLine) { # Couper l'image à la ligne de transition
-            $topPart = $img.Clone([System.Drawing.Rectangle]::new(0, 0, $img.Width, $cutLine), $img.PixelFormat)
-            $bottomPart = $img.Clone([System.Drawing.Rectangle]::new(0, $cutLine, $img.Width, $img.Height - $cutLine), $img.PixelFormat)
-            # Ajouter la partie supérieure à l'assemblage actuel
+    if ($currentHeight + $img.Height -le $maxHeight) {
+        # L'image rentre, on l'ajoute directement
+        $assemblageImages += $img
+        $currentHeight += $img.Height
+    } else {
+        # Il faut voir si on peut couper l'image à ajouter
+        $availableSpace = $maxHeight - $currentHeight
+        $cutInNew = Find-TransitionLine -image $img -currentHeight 0 -maxHeight $availableSpace
+        if ($null -ne $cutInNew) {
+            # Une transition est trouvée dans la nouvelle image
+            $topPart = $img.Clone([System.Drawing.Rectangle]::new(0, 0, $img.Width, $cutInNew), $img.PixelFormat)
+            $bottomPart = $img.Clone([System.Drawing.Rectangle]::new(0, $cutInNew, $img.Width, $img.Height - $cutInNew), $img.PixelFormat)
             $assemblageImages += $topPart
             $currentHeight += $topPart.Height
-            # Vérifier si l'image suivante peut être ajoutée sans dépasser la hauteur maximale
-            if ($currentHeight + $bottomPart.Height -le $maxHeight) {
-                $assemblageImages += $bottomPart
-                $currentHeight += $bottomPart.Height } else {
-                # Sauvegarder l'assemblage actuel
-                $assemblagePath = Join-Path -Path $directoryPath -ChildPath ("{0}{1:D3}.jpg" -f $prefix, $assemblageIndex)
-                Save-Assemblage -images $assemblageImages -outputPath $assemblagePath
-                # Réinitialiser les variables pour le nouvel assemblage
-                $assemblageIndex++
-                $currentHeight = $bottomPart.Height
-                $assemblageImages = @($bottomPart)}} else {
-            # Si aucune ligne de transition n'est trouvée, sauvegarder l'assemblage actuel
+            # Sauvegarder et recommencer
             $assemblagePath = Join-Path -Path $directoryPath -ChildPath ("{0}{1:D3}.jpg" -f $prefix, $assemblageIndex)
             Save-Assemblage -images $assemblageImages -outputPath $assemblagePath
-            # Réinitialiser les variables pour le nouvel assemblage
             $assemblageIndex++
-            $currentHeight = $img.Height
-            $assemblageImages = @($img)}} else { # Ajouter l'image à l'assemblage
-        $assemblageImages += $img
-        $currentHeight += $img.Height}}
-# Sauvegarder le dernier assemblage
-if ($assemblageImages.Count -gt 0) { $assemblagePath = Join-Path -Path $directoryPath -ChildPath ("{0}{1:D3}.jpg" -f $prefix, $assemblageIndex)
-    Save-Assemblage -images $assemblageImages -outputPath $assemblagePath }}
+            $assemblageImages = @($bottomPart)
+            $currentHeight = $bottomPart.Height
+        } else { # Aucune transition dans l'image à ajouter, on tente de revenir jusqu'à $maxRollback images précédentes
+            $rollbackSuccess = $false
+            for ($i = 1; $i -le [Math]::Min($maxRollback, $assemblageImages.Count); $i++) {
+                $rollbackIndex = $assemblageImages.Count - $i
+                $rollbackImage = $assemblageImages[$rollbackIndex]
+                $cutInRollback = Find-TransitionLine -image $rollbackImage -currentHeight 0 -maxHeight $rollbackImage.Height
+                if ($null -ne $cutInRollback) {
+                    # Transition trouvée dans l’image précédente
+                    $topRollback = $rollbackImage.Clone([System.Drawing.Rectangle]::new(0, 0, $rollbackImage.Width, $cutInRollback), $rollbackImage.PixelFormat)
+                    $bottomRollback = $rollbackImage.Clone([System.Drawing.Rectangle]::new(0, $cutInRollback, $rollbackImage.Width, $rollbackImage.Height - $cutInRollback), $rollbackImage.PixelFormat)
+                    # On garde toutes les images avant le rollback
+                    $assemblageImages = $assemblageImages[0..($rollbackIndex - 1)]
+                    $assemblageImages += $topRollback
+                    # Sauvegarde de l’assemblage ajusté
+                    $assemblagePath = Join-Path -Path $directoryPath -ChildPath ("{0}{1:D3}.jpg" -f $prefix, $assemblageIndex)
+                    Save-Assemblage -images $assemblageImages -outputPath $assemblagePath
+                    $assemblageIndex++
+                    # Démarrage du nouveau avec bottomRollback + image actuelle
+                    $assemblageImages = @($bottomRollback, $img)
+                    $currentHeight = $bottomRollback.Height + $img.Height
+                    $rollbackSuccess = $true
+                    break}}
+            if (-not $rollbackSuccess) { # Toujours pas de transition, on sauvegarde comme d’hab
+                $assemblagePath = Join-Path -Path $directoryPath -ChildPath ("{0}{1:D3}.jpg" -f $prefix, $assemblageIndex)
+                Save-Assemblage -images $assemblageImages -outputPath $assemblagePath
+                $assemblageIndex++
+                $assemblageImages = @($img)
+                $currentHeight = $img.Height}}}}
+# Sauvegarde finale après la boucle
+if ($assemblageImages.Count -gt 0) {
+    $assemblagePath = Join-Path -Path $directoryPath -ChildPath ("{0}{1:D3}.jpg" -f $prefix, $assemblageIndex)
+    Save-Assemblage -images $assemblageImages -outputPath $assemblagePath}}
 # fin de la fonction Merge-Images
-# Fonction pour trouver la ligne de transition
-function Find-TransitionLine { param ( [System.Drawing.Image]$image, [int]$currentHeight, [int]$maxHeight)
-    $startY = $maxHeight - $currentHeight
-    for ($y = $startY; $y -ge 1; $y--) {  # Commencer à $startY et s'assurer qu'il y a une ligne au-dessus
-        $isTransition = $true
-        for ($x = 0; $x -lt $image.Width; $x++) {
-            $pixel1 = $image.GetPixel($x, $y)
-            $pixel2 = $image.GetPixel($x, $y - 1)  # Vérifier la ligne au-dessus
-            if ((($pixel1.R -ne 0 -or $pixel1.G -ne 0 -or $pixel1.B -ne 0) -and ($pixel1.R -ne 255 -or $pixel1.G -ne 255 -or $pixel1.B -ne 255)) -or
-                (($pixel2.R -ne 0 -or $pixel2.G -ne 0 -or $pixel2.B -ne 0) -and ($pixel2.R -ne 255 -or $pixel2.G -ne 255 -or $pixel2.B -ne 255))) {
-                $isTransition = $false
-                break }}
-        if ($isTransition) { return $y }} return $null}
+# Fonction pour trouver la ligne de transition dans l'image
+function Find-TransitionLine {
+    param ([System.Drawing.Bitmap]$image, [int]$currentHeight, [int]$maxHeight, [string]$imageName)
+    $startY = [Math]::Min($image.Height - 1, $maxHeight - $currentHeight)
+    $Pdetect = 10 # tolérance de variation en couleur (ex: 10 ~ ±10 sur 0–255)
+    $findstab = 15 # nombre de lignes stables à détecter d'affilée
+    $margin = $global:nbexclu2
+    $stableLines = 0
+    for ($y = $startY; $y -ge 0; $y--) {
+        $lineColor = $image.GetPixel($margin, $y)
+        $isStable = $true
+        for ($x = $margin; $x -lt ($image.Width - $margin); $x++) {
+            $pixel = $image.GetPixel($x, $y)
+            if ([Math]::Abs($pixel.R - $lineColor.R) -gt $Pdetect -or
+                [Math]::Abs($pixel.G - $lineColor.G) -gt $Pdetect -or
+                [Math]::Abs($pixel.B - $lineColor.B) -gt $Pdetect) {$isStable = $false
+                break}}
+        if ($isStable) { $stableLines++
+            if ($stableLines -ge $findstab) { return [Math]::Max(0, $y + $findstab - 1) }} else {$stableLines = 0}}return $null}
 # Fonction pour sauvegarder l'assemblage d'images
 function Save-Assemblage {param ( [System.Drawing.Image[]]$images, [string]$outputPath)
     # Calculer la largeur et la hauteur totale de l'assemblage
@@ -734,10 +757,10 @@ function Save-Assemblage {param ( [System.Drawing.Image[]]$images, [string]$outp
                 $maxassindexA = $assemblageIndex.ToString().PadLeft(3, '0')
                 $fileNamecc = [System.IO.Path]::GetFileName($image)
                 if ($fileNamecc.Length -ge 12) { $fileNamecc = $fileNamecc.Substring(0, 12)} 
-                if ($global:barnbimg -lt 10) {BarProgress -barprog $totalHeight -bartotal 65000 -barLength 40 -bartext1 "" -bartext2 "   $global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
-    Write-host""} elseif ($global:barnbimg -lt 100) {BarProgress -barprog $totalHeight -bartotal 65000 -barLength 40 -bartext1 "" -bartext2 "  $global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
-    Write-host""} elseif ($global:barnbimg -lt 1000) {BarProgress -barprog $totalHeight -bartotal 65000 -barLength 40 -bartext1 "" -bartext2 "  $global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
-    Write-host""} elseif ($global:barnbimg -lt 10000) {BarProgress -barprog $totalHeight -bartotal 65000 -barLength 40 -bartext1 "" -bartext2 "$global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
+                if ($global:barnbimg -lt 10) {BarProgress -barprog $totalHeight -bartotal $maxHeight -barLength 40 -bartext1 "" -bartext2 "   $global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
+    Write-host""} elseif ($global:barnbimg -lt 100) {BarProgress -barprog $totalHeight -bartotal $maxHeight -barLength 40 -bartext1 "" -bartext2 "  $global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
+    Write-host""} elseif ($global:barnbimg -lt 1000) {BarProgress -barprog $totalHeight -bartotal $maxHeight -barLength 40 -bartext1 "" -bartext2 "  $global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
+    Write-host""} elseif ($global:barnbimg -lt 10000) {BarProgress -barprog $totalHeight -bartotal $maxHeight -barLength 40 -bartext1 "" -bartext2 "$global:barnbimg $checkMark Assemblage jusqu'à $fileNamecc ${maxwidthFormattedA}x${maxHeightFormattedA} dans $prefix$maxassindexA.jpg" -bartext3 "" -barcolor 3
     Write-host""}
     $global:barnbimg++
     # Sauvegarder l'image assemblée
@@ -759,10 +782,10 @@ function ProcImage { param ( [string]$imagePath )
     function DetectTransitions {
         param ( [System.Drawing.Bitmap]$bitmap, [int]$startY )
         $transitions = @()
-        for ($y = $startY; $y -lt $bitmap.Height; $y += $pasrecherche) { # $pasrecherche est la hauteur de la ligne de transition
+            for ($y = $startY; $y -lt $bitmap.Height; $y += $pasrecherche) {
             $lineColor = $bitmap.GetPixel($global:nbexclu, $y) # Commence à $global:nbexclu pixels à droite pour éviter les bords
             $isTransition = $true
-            for ($x = ($global:nbexclu); $x -lt ($bitmap.Width - $global:nbexclu); $x += $pasrecherche) {  # Finit $global:nbexclu pixels à gauche pour éviter les bords
+            for ($x = ($global:nbexclu); $x -lt ($bitmap.Width - $global:nbexclu); $x++) {  # Finit $global:nbexclu pixels à gauche pour éviter les bords
                 $pixelColor = $bitmap.GetPixel($x, $y)
                 if (-not ($pixelColor.R -le ($lineColor.R + $tauxvariahorizontal * 2.55) -and $pixelColor.R -ge ($lineColor.R - $tauxvariahorizontal * 2.55) -and
                           $pixelColor.G -le ($lineColor.G + $tauxvariahorizontal * 2.55) -and $pixelColor.G -ge ($lineColor.G - $tauxvariahorizontal * 2.55) -and
@@ -826,7 +849,7 @@ function ProcImage { param ( [string]$imagePath )
         $transitions = DetectTransitions -bitmap $bitmap -startY $startY}
     $bitmap.Dispose()
     $image.Dispose()
-    if ($hautratio -lt 5) { BarProgress -barprog 0 -bartotal 100 -barLength 40 -bartext1 "" -bartext2 "❌ Aucun gain n'est possible dans l'image $global:finlname2 " -bartext3 " " -barcolor 2
+    if ($hautratio -lt 5) { BarProgress -barprog 0 -bartotal 100 -barLength 40 -bartext1 "Pas de gain" -bartext2 "❌ Aucun gain n'est possible dans l'image $global:finlname2 " -bartext3 " " -barcolor 2
         write-host ""} else { Write-Host "`r                                                                                                                        " -NoNewline
         $hautratio2int = ([int]$hautratio2) / 100
         $hautratio2cal = 100 - $hautratio2int
@@ -841,7 +864,7 @@ $reducespac = $args[3] -eq "true"
 # Question pour l'analyse de la largeur des images
 # Obtenir la position actuelle du curseur
     $ycurcon = [System.Console]::CursorTop
-if ([string]::IsNullOrWhiteSpace($directoryPath)) {[console]::beep(300,100)
+if ([string]::IsNullOrWhiteSpace($unitlarg)) {[console]::beep(300,100)
     $ycurcon = [System.Console]::CursorTop
     $reponse = Read-Host "Recherche et uniformisation des largeurs des images ? (O)ui ou (N)on"
 if ($reponse -eq 'O' -or $reponse -eq 'o' -or $reponse -eq 'Y' -or $reponse -eq 'y') {
@@ -851,7 +874,7 @@ else {  Write-Host "Réponse invalide. Veuillez entrer 'O' pour Oui ou 'N' pour 
         [console]::beep(300,600)
         Start-sleep 5
         exit}}
-if ([string]::IsNullOrWhiteSpace($directoryPath)) { [console]::beep(300,100)
+if ([string]::IsNullOrWhiteSpace($dpifind)) { [console]::beep(300,100)
     $reponse = Read-Host "Recherche et uniformisation DPI des images ? (O)ui ou (N)on"
 if ($reponse -eq 'O' -or $reponse -eq 'o' -or $reponse -eq 'Y' -or $reponse -eq 'y') {
     $dpifind = $true } 
@@ -861,7 +884,7 @@ if ($reponse -eq 'O' -or $reponse -eq 'o' -or $reponse -eq 'Y' -or $reponse -eq 
             [console]::beep(300,600)
             Start-sleep 5
             exit}}
-if ([string]::IsNullOrWhiteSpace($directoryPath)) { [console]::beep(300,100)
+if ([string]::IsNullOrWhiteSpace($reducespac)) { [console]::beep(300,100)
     $reponse2 = Read-Host "Voulez-vous Uniformiser l'espace entre les scènes ? (O)ui ou (N)on (opération longue)"
     if ($reponse2 -eq 'O' -or $reponse2 -eq 'o' -or $reponse2 -eq 'Y' -or $reponse2 -eq 'y') { $reducespac = $true } 
     elseif  ($reponse2 -eq 'N' -or $reponse2 -eq 'n') {
@@ -875,7 +898,7 @@ if ([string]::IsNullOrWhiteSpace($directoryPath)) { [console]::beep(300,100)
     $ycurcon2 = [System.Console]::CursorTop
 # Boucle pour effacer les lignes
     for ($i = $ycurcon2; $i -ge $ycurcon; $i--) { [System.Console]::SetCursorPosition(0, $i)
-    Write-Host "                                                                                           "}
+    Write-Host "                                                                               "}
 # Afficher les positions pour vérification
     [System.Console]::SetCursorPosition(0, $ycurcon)
     Write-Host "Paramètres: Uniformisation en largeurs " -ForegroundColor White -NoNewline
@@ -948,4 +971,4 @@ Write-Host ""}
 Write-Host "Le script va se fermer dans 5 secondes"
 Write-Host ""
 start-sleep -Seconds 5
-#pause
+pause
