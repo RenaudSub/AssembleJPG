@@ -130,7 +130,7 @@ Write-Host "                            /_/   \_\___/___/\___|_| |_| |_|_.__/|_|
 Write-Host "                                                                "
 Write-Host "                  Script de conversion des images .webp .png .jpeg en .jpg , Uniformisation des largeurs" -ForegroundColor cyan
 Write-Host "            d'images, des dpi et de l'espace entre les scènes, renommages zéro padding et assemblage vertical" -ForegroundColor cyan
-Write-Host "                             v3.2 du 25.03.2025 par SUBRINI Renaud (contact@infosub.fr)" -ForegroundColor yellow
+Write-Host "                             v3.6 du 28.04.2025 par SUBRINI Renaud (contact@infosub.fr)" -ForegroundColor yellow
 Write-Host "──────────────────────────────────────────────────────────────────────────────────────────────────────────────────" -ForegroundColor darkgray
 # Charger les assembly
 Add-Type -AssemblyName System.Drawing
@@ -260,11 +260,11 @@ function Merge-Images { param ( [string]$directoryPath )
         exit}
 # Récupérer toutes les images dans le répertoire
 	#$images = Get-ChildItem -LiteralPath "$directoryPath" -Include "*.jpg", "*.jpeg" -Recurse | Sort-Object Name
-	$images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" | Sort-Object Name
+	$images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" -Recurse | Sort-Object DirectoryName, Name
 # Rechercher tous les fichiers .webp et .png dans le répertoire et ses sous-répertoires
-	$webpFiles1 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.webp", [System.IO.SearchOption]::AllDirectories)
-	$webpFiles2 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.png", [System.IO.SearchOption]::AllDirectories)
-	$webpFiles3 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.jpeg", [System.IO.SearchOption]::AllDirectories)
+	$webpFiles1 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.webp", [System.IO.SearchOption]::AllDirectories) | Sort-Object
+	$webpFiles2 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.png", [System.IO.SearchOption]::AllDirectories) | Sort-Object
+	$webpFiles3 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.jpeg", [System.IO.SearchOption]::AllDirectories) | Sort-Object
 	$imageFiles = @()
 	$imageFiles += $webpFiles1 | ForEach-Object { Get-Item -LiteralPath $_ }
 	$imageFiles += $webpFiles2 | ForEach-Object { Get-Item -LiteralPath $_ }
@@ -313,7 +313,7 @@ Write-Host "──────────────────────�
 # Vérification si il existe déjà un assemblage de fichier
 #⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤
 #$testwebtexit = ("$directoryPath\$prefix" + "001.jpg")
-$testfilesper = Get-ChildItem -LiteralPath $directoryPath -Filter "$prefix*.jpg"
+$testfilesper = Get-ChildItem -LiteralPath $directoryPath -Filter "$prefix*.jpg" -Recurse
 $matchingFilesFi1 = $testfilesper | Where-Object { $_.Name -match "^$prefix\d{1,3}\.jpg$" }
 $firstFileFi1 = $matchingFilesFi1 | Sort-Object Name | Select-Object -First 1
 if ($firstFileFi1 -and (Test-Path -LiteralPath $firstFileFi1.FullName)) {
@@ -346,7 +346,7 @@ Write-Host "──────────────────────�
 #$unitlarg = $false
 if ($unitlarg) {    Write-Host "Démarrage de l'analyse de la largeurs des images dans le répertoire ..."-ForegroundColor white
                     Write-Host ""
-$images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" | Sort-Object Name
+$images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" -Recurse | Sort-Object DirectoryName, Name
 # Créer un dictionnaire pour stocker les largeurs et leurs fréquences
 $widthFrequency = @{}
 $tempcompt = 0
@@ -515,8 +515,7 @@ foreach ($file in $jpgFiles) {
         $tempcompt++
         $imageCountTemp = $jpgFiles.Count
         # Vérifier si l'image a une résolution différente
-        if ($dpiX -ne $referenceDpiX -or $dpiY -ne $referenceDpiY) {
-            $barimcount++ }
+        if ($dpiX -ne $referenceDpiX -or $dpiY -ne $referenceDpiY) { $barimcount++ }
         BarProgress -barprog $tempcompt -bartotal $imageCountTemp -barLength 60 -bartext1 "$tempcompt/$imageCountTemp " -bartext2 "Détermine combien de fichiers à convertir en $($referenceDpiX)DPI ..." -bartext3 "Fin de l'analyse" -barcolor 0
         # Libérer les ressources de l'image
         $image.Dispose()
@@ -585,7 +584,7 @@ foreach ($file in $jpgFiles) {
 #⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤
 # Zero padding
 #⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤
-    $images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" | Sort-Object Name
+    $images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" -Recurse | Sort-Object DirectoryName, Name
     Write-Host "Démarrage de l'analyse de la largeur des noms de fichiers pour l'application du zero-padding ..." -ForegroundColor white
     Write-Host ""
 # Fonction pour valider les noms de fichiers et ajouter du zero-padding
@@ -632,7 +631,7 @@ if ($reducespac) { Write-Host "Démarrage de l'uniformisation des transitions su
     Write-Host ""
     Write-Host " Initialisation du moteur d'analyse des transitions..." -ForegroundColor White -NoNewline
     if ($global:nbexclu -eq 0) { $global:nbexclu = 1} # pour éviter la division par zéro
-    Get-ChildItem -LiteralPath $directoryPath -Filter *.jpg | ForEach-Object {ProcImage -imagePath $_.FullName}
+    Get-ChildItem -LiteralPath $directoryPath -Filter *.jpg  -Recurse | ForEach-Object {ProcImage -imagePath $_.FullName}
     if ($reducespac -eq $true -and ($global:hautoritot -gt 0) -and ($global:hautfintot -gt 0)) {
         $hautratio = (($global:hautoritot - $global:hautfintot) / $global:hautoritot) * 100
         $hautratio2 = $hautratio.ToString("F2")
@@ -653,7 +652,7 @@ if ($reducespac) { Write-Host "Démarrage de l'uniformisation des transitions su
 # Phase d'Assemblage
 #⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤
 # Initialiser les variables pour l'assemblage
-$images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" | Sort-Object Name
+$images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg"  -Recurse | Sort-Object DirectoryName, Name
 $currentHeight = 0
 $maxRollback = 6
 $global:countfilebar3 = ($images.Count)
@@ -775,8 +774,11 @@ function ProcImage { param ( [string]$imagePath )
     # Charger l'image
     $image = [System.Drawing.Image]::FromFile($imagePath)
     $bitmap = New-Object System.Drawing.Bitmap $image
-    $fileNametemp = [System.IO.Path]::GetFileName($imagePath)
-    if ($fileNametemp.Length -ge 12) { $fileNametemp = $fileNametemp.Substring(0, 14)} #Limite la longueur du nom du fichier
+    $parentDir = Split-Path -Path $imagePath -Parent
+    $parentName = Split-Path -Path $parentDir -Leaf
+    $fileName = [System.IO.Path]::GetFileName($imagePath)
+    $fileNametemp = "...$parentName/$fileName"
+    $fileNametemp = $fileNametemp.Substring(0, [Math]::Min(18, $fileNametemp.Length)) #limite la longueur à 18 caractères
     $global:finlname2 = $fileNametemp
     # Fonction pour détecter les transitions
     function DetectTransitions {
@@ -968,7 +970,6 @@ Write-Host "Création de $($global:barnbimg-1) fichiers assemblés avec succès 
 Write-Host ""
 if ($reducespac -eq $true -and ($global:hautoritot -gt 0) -and ($global:hautfintot -gt 0)) {Write-Host "Pour un ratio moyen $hautratio2% pour une rédutction de $($global:hautoritot)p a $($global:hautfintot)p"
 Write-Host ""}
-Write-Host "Le script va se fermer dans 5 secondes"
+Write-Host "Le script va se fermer dans 3 secondes"
 Write-Host ""
 start-sleep -Seconds 5
-pause
