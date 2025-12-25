@@ -1,5 +1,5 @@
 # AssembleJPG
-Script PowerShell pour l'assemblage d'un Webtoon v3.2
+Script PowerShell pour l'assemblage d'un Webtoon v7.2
 
     Il y a 6 fonctions principales dans ce script :
 
