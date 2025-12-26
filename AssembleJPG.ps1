@@ -936,7 +936,9 @@ function ProcImage { param ( [string]$imagePath )
     $bitmap.Dispose()
     $image.Dispose()
     if ($hautratio -lt 5) { BarProgress -barprog 0 -bartotal 100 -barLength 40 -bartext1 "Pas de gain" -bartext2 "⚠️ Aucun gain n'est possible dans l'image $global:finlname2 " -bartext3 " " -barcolor 2
-        write-host ""} else { Write-Host "`r                                                                                                                        " -NoNewline
+        write-host ""
+        #Pondération si pas de gain sur l'image ajout de la hauteur originale dans $global:hautfintot 
+        $global:hautfintot = $global:hautfintot + $global:hautori} else { Write-Host "`r                                                                                                                        " -NoNewline
         $hautratio2int = ([int]$hautratio2) / 100
         $hautratio2cal = 100 - $hautratio2int
         BarProgress -barprog $hautratio2cal -bartotal 100 -barLength 40 -bartext1 "Gain $hautratio2%" -bartext2 "$checkMark Le fichier $global:finlname2 hauteur:$($global:hautori)p reduction:$($hautfin)p Gain $hautratio2%" -bartext3 "" -barcolor 2
