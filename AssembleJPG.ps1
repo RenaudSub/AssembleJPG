@@ -116,8 +116,10 @@ $transihaut = 50                    # Hauteur de la zone de transition à conser
 $tauxvariahorizontal = 6            # Tolérance de variation des couleurs pour la détection d'une ligne de transition (en cas de mauvais qualité de l'image il faut l'augmenté ex: 36)
 $pasrecherche = 5                   # Pas d'analyse si = 1 toutes les lignes si 2 une ligne sur 2 si 3 une ligne sur 3 etc...
 $global:nbexclu = 5                 # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition (Certaine image on des bordures noires ou blanches)
-$global:nbexclu2 = 80              # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition dans le module d'assemblage uniquement
+$global:nbexclu2 = 80               # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition dans le module d'assemblage uniquement
 # Variables internes du script (ne pas modifier)
+$global:hautoritot = 0              # initialisation des variables pour le calcul de la hauteur totale de l'image en cours
+$global:hautfintot = 0              # comptabilise la hauteur finale de toutes les images
 $datestart = Get-Date               # Date de démarrage du script pour les stats à la fin
 $checkMark = [char]0x2705           # Check Mark Unicode
 $global:barnbimg = 1                # Variable interne global pour la barre de progression entre les différentes fonctions
@@ -698,8 +700,6 @@ Write-Host "──────────────────────�
 #
 # Début de l'analyse et de la reduction de l'espace entre les scènes
 #⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤
-$global:hautoritot = 0  # initialisation des variables pour le calcul de la hauteur totale de l'image en cours
-$global:hautfintot = 0  # comptabilise la hauteur finale de toutes les images
 $Global:ficomp = 1
 if ($reducespac -eq $true) { Write-Host "⏳ Démarrage de l'uniformisation des transitions sur une hauteur de " -ForegroundColor White -NoNewline
     Write-Host "$($transihaut)" -ForegroundColor Green -NoNewline
@@ -735,6 +735,20 @@ $maxRollback = 6
 $global:countfilebar3 = ($images.Count)
 $assemblageIndex = 1
 $assemblageImages = @()
+$maxHeightorig = $maxHeight
+if ($global:hautfintot -gt $maxHeight) { 
+    $NbSegments = [math]::Ceiling($global:hautfintot / $maxHeight)
+    $maxHeightorig = $maxHeight
+    $maxHeight =  [math]::Floor($global:hautfintot / $NbSegments)
+Write-Host "ℹ️ Pondération de la Hauteur moyenne " -ForegroundColor White -NoNewline
+Write-Host "$global:hautfintot" -ForegroundColor Cyan -NoNewline
+Write-Host " pixels nombre d'images possible " -ForegroundColor white -NoNewline
+Write-Host "$NbSegments" -ForegroundColor Cyan -NoNewline
+Write-Host " nouvelle hauteur max " -ForegroundColor white -NoNewline
+Write-Host "$maxHeight" -ForegroundColor Cyan -NoNewline
+Write-Host " pixels" -ForegroundColor white
+Write-Host ""
+}
 Write-Host "⏳ Début de l'assemblage verticale des images au format jpg avec un hauteur maximum de " -ForegroundColor White  -NoNewline
 Write-Host "$maxHeight" -ForegroundColor green  -NoNewline
 write-Host " pixels" -ForegroundColor white
@@ -742,9 +756,11 @@ Write-Host ""
 Write-Host "           Taux de remplissage          " -ForegroundColor white -BackgroundColor green -NoNewline
 Write-Host "  Num.                     Nom ori.  Nouv. Dim.     Nom :                   " -ForegroundColor white -BackgroundColor green -NoNewline
 Write-Host "" -ForegroundColor White -BackgroundColor black
+$lastFullName = $images[-1].FullName
 foreach ($image in $images) {
     $img = [System.Drawing.Image]::FromFile($image.FullName)
-    if ($currentHeight + $img.Height -le $maxHeight) {
+    $limit = if ($image.FullName -eq $lastFullName) { $maxHeightorig  } else { $maxHeight }
+    if ($currentHeight + $img.Height -le $limit) {
         # L'image rentre, on l'ajoute directement
         $assemblageImages += $img
         $currentHeight += $img.Height
