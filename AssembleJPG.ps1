@@ -40,15 +40,6 @@
 
     2.b Il est possible de double cliquer directement sur le script pour le lancer la sélection du choix des paramètres se fera à l'exécution
 	
-    2.a il est possible de lancer le script directement en ligne de commande avec les paramètres suivants : 
-            AssembJPG.ps1 "C:\Chemin\durépertoire\aassember" "true1" "true1" "true1"
-                1er paramètre : Chemin du répertoire à assembler
-                2ème paramètre : true pour uniformiser les largeurs des images
-                3ème paramètre : true pour uniformiser les résolutions DPI des images
-                4ème paramètre : true pour uniformiser les espaces entre les scènes
-
-    2.b Il est possible de double cliquer directement sur le script pour le lancer la sélection du choix des paramètres se fera à l'exécution.
-
     2.c il est possible de lancer le script depuis le menu contextuel de l'explorateur de fichier en ajoutant une clé dans le registre.
 	    Ajouter la clé dans le registre pour pouvoir le lancer depuis le menu contextuel: (copier/coller le texte ci-dessous dans un fichier .reg)
 			Windows Registry Editor Version 5.00
