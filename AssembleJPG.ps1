@@ -18,20 +18,28 @@
                                                                       (▁▁)
 	Script PowerShell pour l'assemblage d'un Webtoon :
 
-        Il y a 6 fonctions principales dans ce script :
+        Bref: il assemble toutes les images verticalement dans une ou plusieurs images JPG de hauteur $maxHeight , avant il vérifie et uniformise le formats, 
+        les largeurs, les DPI et l'espace entre les scènes en recherchant les zones de couleur unie horizontales.
 
-    1.a		Ce script va convertir toutes les images .webp .png .jpeg en .jpg et les remplacer dans le répertoire.
+        Il y a 7 fonctions principales dans ce script :
+
+    1.a		Ce script va rechercher et convertir toutes les images .webp .png .jpeg en .jpg et les convertir et remplacer dans le répertoire.
     1.b     Il va analyser les images jpg du répertoire pour vérifier si sont bien des images JPG valides.
+        Principalement il recherchera les images corrompues ou mal encodées avec la mauvaise extension.
+        en cas d'image corrompue il listera les fichiers dans un rapport d'erreur et s'arrêtera.
     1.c     il va vérifier et unifier leurs largeurs et leurs résolutions DPI en recherchant quelle sont les plus utilisées.
     1.d     Il va vérifier si un assemblage d'images est déjà présent dans le répertoire et le supprimer !
         Attention si des fichiers avec $prefix="WebToon n°" sont présent dans le répertoire il les éffacera !
     1.e     Il va renommer les images s'il y a du padding dans les noms de fichiers.(1.jpg,2.jpg,..,10.jpg en 01.jpg,02.jpg,..,10.jpg)
-    1.f     il recherchera les espaces horizontaux de couleurs unies de plus de 30 pixels pour uniformiser les espaces entre les scènes.
+    1.f     il recherchera les espaces horizontaux de couleurs unies de plus de 50 pixels ($transihaut) pour uniformiser les espaces entre les scènes.
         Cette opération est assez longue et peut prendre plusieurs minutes en fonction du nombre d'images à traiter.
-    1.g     Il assemblera toutes les images à la suite sur une hauteur max de 65000 pixels et recherchera des lignes horizontales complètes
+        a l'issue de cette opération il calculara le nombre d'images possible a assembler en fonction de la hauteur max définie (pondération) et ajustera la variable $maxHeight
+    1.g     Il assemblera toutes les images à la suite sur une hauteur max de 60000 pixels ($maxHeight) et recherchera des lignes horizontales complètes
             de couleur unie dans l'image afin de faire une coupure entre deux images.
-    
-    2.a il est possible de lancer le scripts directement en ligne de commande avec les paramètres suivants : 
+
+        Lancement du script :
+
+    2.En ligne de commande il est possible de lancer le scripts directement en ligne de commande avec les paramètres suivants : 
             AssembJPG.ps1 "C:\Chemin\durépertoire\aassember" "true1" "true1" "true1"
                 1er paramètre : Chemin du répertoire à assembler
                 2ème paramètre : true pour uniformiser les largeurs des images
@@ -40,7 +48,7 @@
 
     2.b Il est possible de double cliquer directement sur le script pour le lancer la sélection du choix des paramètres se fera à l'exécution
 	
-    2.c il est possible de lancer le script depuis le menu contextuel de l'explorateur de fichier en ajoutant une clé dans le registre.
+    2.c Lancer le script depuis le menu contextuel de l'explorateur de fichier en ajoutant une clé dans le registre.
 	    Ajouter la clé dans le registre pour pouvoir le lancer depuis le menu contextuel: (copier/coller le texte ci-dessous dans un fichier .reg)
 			Windows Registry Editor Version 5.00
 
@@ -54,11 +62,11 @@
 			"Position"="1"
 
 			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG\command]
-			@="powershell -File C:\\Users\\'votre nom de compte'\\Scripts\\AssembleJPG.ps1 \"%1\"\ "true"\ "true"\ "false""
+			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Renaud\Scripts\AssembleJPG.ps1" "%1" "true" "true" "False"""
 			
 			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG]
 			@=""
-			"MUIVerb"="Assemble les images JPG verticalement et postprossessing transitions"
+			"MUIVerb"="Assemble les images JPG verticalement et transitions"
             "Icon"=hex(2):25,00,53,00,79,00,73,00,74,00,65,00,6d,00,52,00,6f,00,6f,00,74,\
             00,25,00,5c,00,53,00,79,00,73,00,74,00,65,00,6d,00,33,00,32,00,5c,00,41,00,\
             73,00,73,00,65,00,6d,00,62,00,6c,00,65,00,4a,00,50,00,47,00,2e,00,69,00,63,\
@@ -66,25 +74,30 @@
 			"Position"="1"
 
 			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG\command]
-			@="powershell -File C:\\Users\\'votre nom de compte'\\Scripts\\AssembleJPG.ps1 \"%1\"\ "true"\ "true"\ "true""
+			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Renaud\Scripts\AssembleJPG.ps1" "%1" "true" "true" "true"""
 			
 
             (fin du .reg il faut garder les 2 lignes vides à la fin du fichier l'enregistrer et clique droit pour le fusionner au registre)
             (copier l'icon Assemble.jpg dans le répertoire C:\System32\system32\)
 
-    3.a Important : Pré-requis pour le bon fonctionnement du script :
-	        Pour la conversion d'image le script utilise imagemagick.
-            vous devez ouvrir une fenêtre PowerShell en tant qu'administrateur et exécuter la commande suivante :
-			    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.WebClient]::New().DownloadString('https://chocolatey.org/install.ps1') | Invoke-Expression
-			et après :
+        Pré-requis pour le bon fonctionnement du script :
+    3.a Le script nécessite d'avoir PowerShell 7 ou supérieur d'installé sur votre machine.
+        Vous pouvez le télécharger ici : https://learn.microsoft.com/fr-fr/powershell/scripting/install/installing-powershell-on-windows
+        Après l'installation de PowerShell 7 il faudra peut être modifier la ligne de commande dans le registre pour pointer vers le bon exécutable 
+        (exemple : C:\Program Files\PowerShell\7\pwsh.exe -File C:\Users\'votre nom de compte'\Scripts\AssembleJPG.ps1 "%1" "true" "true" "false")
+
+    3.b Pour la conversion d'image le script utilise imagemagick.
+        vous devez ouvrir une fenêtre PowerShell en tant qu'administrateur et exécuter la commande suivante :
+		    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.WebClient]::New().DownloadString('https://chocolatey.org/install.ps1') | Invoke-Expression
+		et après :
                 choco install imagemagick --acceptlicence --yes		
-			Note:  l'installation échouera si une précédente installation est dans "C:\ProgramData\chocolatey" est présente il faudra supprimer ou renommer ce 
-                    répertoire manuellement.            
+		Note:  l'installation échouera si une précédente installation est dans "C:\ProgramData\chocolatey" est présente il faudra supprimer ou renommer ce 
+        répertoire manuellement.            
 
-	3.b En cas d'interdiction de lancement des scripts:
+        Problème possible lors du lancement du script :
+	4.a En cas d'interdiction de lancement des scripts:
 			S'il y a une interdiction c'est que la politique de sécurité actuelle doit être "Restricted" qui est la valeur par défaut sous Windows.
-            Pour la modifier, vous devez ouvrir une fenêtre PowerShell en tant qu'administrateur et exécuter la commande suivante :
-
+            Pour la modifier, vous devez ouvrir une fenêtre PowerShell en tant qu'administrateur .
 			Cliquez sur "Démarrer" puis saisissez "powershell", faites clic droit sur "Windows PowerShell" et cliquez sur "Exécuter en tant qu'Administrateur"
 			Utilisez la commande suivante : "Set-ExecutionPolicy Unrestricted"
 			Lorsqu'on vous demande de confirmer la modification, indiquez "O" pour Oui et appuyez sur Entrée et relancer le script ".\ConvertArchive.ps1"
@@ -108,7 +121,8 @@ $tauxvariahorizontal = 6            # Tolérance de variation des couleurs pour 
 $pasrecherche = 5                   # Pas d'analyse si = 1 toutes les lignes si 2 une ligne sur 2 si 3 une ligne sur 3 etc...
 $global:nbexclu = 5                 # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition (Certaine image on des bordures noires ou blanches)
 $global:nbexclu2 = 80               # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition dans le module d'assemblage uniquement
-# Variables internes du script (ne pas modifier)
+$ponderation = $true                # Activer la pondération de la hauteur des images pour le calcul du nombre d'images à assembler
+# Variables internes du script (initialisation ne pas modifier svp)
 $global:hautoritot = 0              # initialisation des variables pour le calcul de la hauteur totale de l'image en cours
 $global:hautfintot = 0              # comptabilise la hauteur finale de toutes les images
 $datestart = Get-Date               # Date de démarrage du script pour les stats à la fin
@@ -124,7 +138,7 @@ Write-Host "                            /_/   \_\___/___/\___|_| |_| |_|_.__/|_|
 Write-Host "                                                                "
 Write-Host "              📄 Script de conversion des images .webp .png .jpeg en .jpg & Uniformisation des largeurs" -ForegroundColor cyan
 Write-Host "           d'images, des dpi et de l'espace entre les scènes, renommages zéro padding et assemblage vertical" -ForegroundColor cyan
-Write-Host "                            v7.2 du 26.12.2025 par SUBRINI Renaud 📧 contact@infosub.fr" -ForegroundColor yellow
+Write-Host "                            v7.3 du 27.12.2025 par SUBRINI Renaud 📧 contact@infosub.fr" -ForegroundColor yellow
 Write-Host "──────────────────────────────────────────────────────────────────────────────────────────────────────────────────" -ForegroundColor darkgray
 # Charger les assembly
 Add-Type -AssemblyName System.Drawing
@@ -257,12 +271,15 @@ function Merge-Images { param ( [string]$directoryPath )
 #⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤
     function Get-ImageFormatFromFile {
         param([string]$path)
-        if (-not (Test-Path $path)) { return $null }
+        if (-not (Test-Path -LiteralPath $path)) { return $null }
         try {
             $fs = [System.IO.File]::Open($path, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::Read)
+            try {
             $bytes = New-Object byte[] 12
             $read = $fs.Read($bytes, 0, $bytes.Length)
-            $fs.Close()
+            } finally {
+                 $fs.Dispose()
+            }
         } catch { return $null }
         if ($read -ge 3 -and $bytes[0] -eq 0xFF -and $bytes[1] -eq 0xD8 -and $bytes[2] -eq 0xFF) { return "jpeg" }
         if ($read -ge 12 -and ($bytes[0] -eq 0x52 -and $bytes[1] -eq 0x49 -and $bytes[2] -eq 0x46 -and $bytes[3] -eq 0x46 -and $bytes[8] -eq 0x57 -and $bytes[9] -eq 0x45 -and $bytes[10] -eq 0x42 -and $bytes[11] -eq 0x50)) { return "webp" }
@@ -280,25 +297,36 @@ function Merge-Images { param ( [string]$directoryPath )
 #⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤⏤
 Write-Host "──────────────────────────────────────────────────────────────────────────────────────────────────────────────────" -ForegroundColor darkgray 
 Write-Host "✅ Analyse du format des images jpg pour vérifier leur format réel..." -ForegroundColor white -NoNewline
-$jpgFiles = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.jpg", [System.IO.SearchOption]::AllDirectories) + [System.IO.Directory]::EnumerateFiles($directoryPath, "*.jpeg", [System.IO.SearchOption]::AllDirectories)
+$arretincorrectformat = 0
+$jpgFiles = @(
+    [System.IO.Directory]::EnumerateFiles($directoryPath, "*.jpg",  [System.IO.SearchOption]::AllDirectories)
+    [System.IO.Directory]::EnumerateFiles($directoryPath, "*.jpeg", [System.IO.SearchOption]::AllDirectories))
     $renamedCount = 0
 foreach ($jf in $jpgFiles) {
         $realFmt = Get-ImageFormatFromFile -path $jf
-        if ($realFmt -eq "unknown" ) {Write-Host "   ⚠️ $oldName " -ForegroundColor Yellow -NoNewline
-                Write-Host "n'est pas une image JPG mais un format inconnu "-ForegroundColor white 
-                Pause
-			    exit}
+        if ($null -ne $realFmt) { $realFmt = $realFmt.ToLowerInvariant() }
+        if ($realFmt -eq "unknown" ) {
+            if ($arretincorrectformat -eq 1) {
+                Write-Host "⚠️ l'image a un format inconnu dans $jf"-ForegroundColor white 
+                continue
+            } else { 
+                Write-Host ""
+                Write-Host "⚠️ l'image a un format inconnu dans $jf"-ForegroundColor white 
+                $arretincorrectformat = 1
+                continue
+            }}
         if ($realFmt -and ($realFmt -ne "jpeg")) {
             try {
+                $newWebpPath = $null
                 if ($renamedCount -eq 0) { Write-host "" ; Write-host "" }
                 $oldName = [System.IO.Path]::GetFileName($jf)
                 if ($realFmt -eq "webp" ) {$newWebpPath = [System.IO.Path]::ChangeExtension($jf, ".webp")}
                 if ($realFmt -eq "png" ) {$newWebpPath = [System.IO.Path]::ChangeExtension($jf, ".png")}
                 if ($realFmt -eq "gif" ) {$newWebpPath = [System.IO.Path]::ChangeExtension($jf, ".gif")}
                 if ($realFmt -eq "unknown" ) {Write-Host "   ⚠️ $oldName " -ForegroundColor Yellow -NoNewline
-                Write-Host "n'est pas une image JPG mais un format inconnu "-ForegroundColor white 
-                Pause
-			    exit}
+                Write-Host ""
+                Write-Host "Attention $oldName n'est pas une image JPG mais un format inconnu "-ForegroundColor white 
+                }
                 $dir = [System.IO.Path]::GetDirectoryName($newWebpPath)
                 $base = [System.IO.Path]::GetFileNameWithoutExtension($newWebpPath)
                 $ext = [System.IO.Path]::GetExtension($newWebpPath)
@@ -321,6 +349,12 @@ foreach ($jf in $jpgFiles) {
 			exit
 			}
         }
+    }
+    if ($arretincorrectformat -eq 1) {
+        Write-Host " Certain fichier jpg sont corrompu, il faut les corriger manuellement" -ForegroundColor Green
+        write-Host ""        
+        pause
+        exit
     }
 	if ($renamedCount -gt 0) {
     Write-Host ""
@@ -584,6 +618,7 @@ $referenceDpiY = [math]::Round($referenceDpiY)
 BarProgress -barprog 100 -bartotal 100 -barLength 60 -bartext1 "L'analyse à déterminé que la résolution la plus fréquente est :" -bartext2 "$referenceDpi" -bartext3 "DPI" -barcolor 4
 Write-Host ""
 $tempcompt=0
+$haut4final = 0
 foreach ($file in $jpgFiles) {
     try {# Utiliser un flux de données pour charger l'image
         $stream = [System.IO.File]::OpenRead($file.FullName)
@@ -596,6 +631,9 @@ foreach ($file in $jpgFiles) {
         # Vérifier si l'image a une résolution différente
         if ($dpiX -ne $referenceDpiX -or $dpiY -ne $referenceDpiY) { $barimcount++ }
         BarProgress -barprog $tempcompt -bartotal $imageCountTemp -barLength 60 -bartext1 "$tempcompt/$imageCountTemp " -bartext2 "Détermine combien de fichiers à convertir en $($referenceDpiX)DPI ..." -bartext3 "Fin de l'analyse" -barcolor 0
+        # Pondération : ajouter la hauteur de l'image au total des hauteurs
+        if ($ponderation -eq $true) { if ($reducespac -eq $false) { $haut4final = ($Image.Height)
+        $global:hautfintot = $global:hautfintot + $haut4final}}
         # Libérer les ressources de l'image
         $image.Dispose()
         $stream.Dispose()
@@ -675,8 +713,8 @@ foreach ($file in $images) {try {if ($enumfic) { $newName = $counter.ToString("D
             $newName = ValidateFileNameA -fileName $file.BaseName -maxLength $maxLength } else { continue }
         $newFile = Join-Path $file.DirectoryName "$newName$($file.Extension)"
         if ($file.FullName -eq $newFile) { Write-Host "`n[SKIP] le fichier est déjà nommé correctement : $($file.FullName)" -NoNewline -ForegroundColor Yellow; $nbficmn++ } 
-        elseif (Test-Path $newFile) { Write-Host "`n[SKIP] Collision le fichier : $newFile existe déjà" -NoNewline -ForegroundColor Magenta ; $nbficdp++}
-        if ($file.FullName -ne $newFile -and -not (Test-Path $newFile)) { Write-Host ("`rRenommage de {0} en {1}      " -f $file.FullName, (Split-Path $newFile -Leaf)) -NoNewline -ForegroundColor darkcyan
+        elseif (Test-Path -LiteralPath $newFile) { Write-Host "`n[SKIP] Collision le fichier : $newFile existe déjà" -NoNewline -ForegroundColor Magenta ; $nbficdp++}
+        if ($file.FullName -ne $newFile -and -not (Test-Path -LiteralPath $newFile)) { Write-Host ("`rRenommage de {0} en {1}      " -f $file.FullName, (Split-Path $newFile -Leaf)) -NoNewline -ForegroundColor darkcyan
             [System.IO.File]::Move($file.FullName, $newFile) ; $nbficrenom++ }
     } catch { Write-Host "`nErreur lors du renommage de $($file.FullName) : $_" -ForegroundColor red ; pause; exit }}
 if ($nbficrenom -eq 0) { Write-Host "`n👍 Aucun fichier n'a été renommé, le format est déjà correct." -ForegroundColor green } else {
@@ -727,6 +765,7 @@ $global:countfilebar3 = ($images.Count)
 $assemblageIndex = 1
 $assemblageImages = @()
 $maxHeightorig = $maxHeight
+if ($ponderation -eq $true) {
 if ($global:hautfintot -gt $maxHeight) { 
     $NbSegments = [math]::Ceiling($global:hautfintot / $maxHeight)
     $maxHeightorig = $maxHeight
@@ -738,8 +777,7 @@ Write-Host "$NbSegments" -ForegroundColor Cyan -NoNewline
 Write-Host " nouvelle hauteur max " -ForegroundColor white -NoNewline
 Write-Host "$maxHeight" -ForegroundColor Cyan -NoNewline
 Write-Host " pixels" -ForegroundColor white
-Write-Host ""
-}
+Write-Host ""}}
 Write-Host "⏳ Début de l'assemblage verticale des images au format jpg avec un hauteur maximum de " -ForegroundColor White  -NoNewline
 Write-Host "$maxHeight" -ForegroundColor green  -NoNewline
 write-Host " pixels" -ForegroundColor white
@@ -926,6 +964,7 @@ function ProcImage { param ( [string]$imagePath )
         $imagePath2 | Remove-Item
         Rename-Item $tempPath2 $imagePath2
         $hautratio = (($global:hautori - $hautfin) / $global:hautori) * 100
+        #Pondération :e ajout de la hauteur originale dans $global:hautfintot 
         $global:hautoritot = $global:hautoritot + $global:hautori
         $global:hautfintot = $global:hautfintot + $hautfin
         $hautratio2 = $hautratio.ToString("F2")
@@ -938,7 +977,8 @@ function ProcImage { param ( [string]$imagePath )
     if ($hautratio -lt 5) { BarProgress -barprog 0 -bartotal 100 -barLength 40 -bartext1 "Pas de gain" -bartext2 "⚠️ Aucun gain n'est possible dans l'image $global:finlname2 " -bartext3 " " -barcolor 2
         write-host ""
         #Pondération si pas de gain sur l'image ajout de la hauteur originale dans $global:hautfintot 
-        $global:hautfintot = $global:hautfintot + $global:hautori} else { Write-Host "`r                                                                                                                        " -NoNewline
+        $global:hautfintot = $global:hautfintot + $global:hautori
+        } else { Write-Host "`r                                                                                                                        " -NoNewline
         $hautratio2int = ([int]$hautratio2) / 100
         $hautratio2cal = 100 - $hautratio2int
         BarProgress -barprog $hautratio2cal -bartotal 100 -barLength 40 -bartext1 "Gain $hautratio2%" -bartext2 "$checkMark Le fichier $global:finlname2 hauteur:$($global:hautori)p reduction:$($hautfin)p Gain $hautratio2%" -bartext3 "" -barcolor 2
