@@ -115,7 +115,7 @@
 $OutputEncoding = [System.Text.Encoding]::UTF8
 # Variables modifiable par l'utilisateur :
 $prefix = "WebToon"                 # Préfixe des fichiers à assembler
-$maxHeight = 60000                  # Défini la hauteur max des assemblages (au delà de 65000 pixels plantage limite du format JPG)
+$maxHeight = 55000                  # Défini la hauteur max des assemblages (au delà de 65000 pixels plantage limite du format JPG)
 $transihaut = 50                    # Hauteur de la zone de transition à conserver (en pixels) entre les images assemblées                       
 $tauxvariahorizontal = 6            # Tolérance de variation des couleurs pour la détection d'une ligne de transition (en cas de mauvais qualité de l'image il faut l'augmenté ex: 36)
 $pasrecherche = 5                   # Pas d'analyse si = 1 toutes les lignes si 2 une ligne sur 2 si 3 une ligne sur 3 etc...
@@ -342,7 +342,7 @@ foreach ($jf in $jpgFiles) {
                 Write-Host "   ⚠️ $oldName " -ForegroundColor Yellow -NoNewline
                 Write-Host "n'est pas une image JPG mais bien une image au format "-ForegroundColor white -NoNewline
                 Write-Host "$realFmt" -ForegroundColor Cyan -NoNewline
-                Write-Host " elle sera donc convertie" -ForegroundColor white
+                Write-Host " elle sera donc convertie     " -ForegroundColor white
             } catch {
                 Write-Host "Impossible de renommer $jf : $($_.Exception.Message)" -ForegroundColor Red
             Pause
@@ -785,17 +785,15 @@ Write-Host ""
 Write-Host "           Taux de remplissage          " -ForegroundColor white -BackgroundColor green -NoNewline
 Write-Host "  Num.                     Nom ori.  Nouv. Dim.     Nom :                   " -ForegroundColor white -BackgroundColor green -NoNewline
 Write-Host "" -ForegroundColor White -BackgroundColor black
-$lastFullName = $images[-1].FullName
 foreach ($image in $images) {
     $img = [System.Drawing.Image]::FromFile($image.FullName)
-    $limit = if ($image.FullName -eq $lastFullName) { $maxHeightorig  } else { $maxHeight }
-    if ($currentHeight + $img.Height -le $limit) {
-        # L'image rentre, on l'ajoute directement
+    $limit = if ($ponderation -and ($assemblageIndex -ge $NbSegments)) { $maxHeightorig } else { $maxHeight }
+    if ($currentHeight + $($img.Height) -le $limit) {   # L'image rentre, on l'ajoute directement
         $assemblageImages += $img
         $currentHeight += $img.Height
     } else {
         # Il faut voir si on peut couper l'image à ajouter
-        $availableSpace = $maxHeight - $currentHeight
+        $availableSpace = $limit - $currentHeight
         $cutInNew = Find-TransitionLine -image $img -currentHeight 0 -maxHeight $availableSpace
         if ($null -ne $cutInNew) {
             # Une transition est trouvée dans la nouvelle image
