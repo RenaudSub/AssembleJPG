@@ -1,85 +1,237 @@
-		Script PowerShell pour l'assemblage d'un Webtoon :
+# AssembleJPG
 
-        Bref: il assemble toutes les images verticalement dans une ou plusieurs images JPG de hauteur $maxHeight , avant il vérifie et uniformise le formats, 
-        les largeurs, les DPI et l'espace entre les scènes en recherchant les zones de couleur unie horizontales.
+**AssembleJPG** est un script PowerShell pour Windows permettant d’assembler automatiquement les images d’un webtoon en une ou plusieurs grandes images JPG verticales.
 
-        Il y a 7 fonctions principales dans ce script :
+Le script vérifie les fichiers, convertit les formats compatibles, uniformise si nécessaire la largeur et la résolution des images, réduit les espaces entre les scènes et crée des fichiers `WebToon001.jpg`, `WebToon002.jpg`, etc.
 
-    1.a		Ce script va rechercher et convertir toutes les images .webp .png .jpeg en .jpg et les convertir et remplacer dans le répertoire.
-    1.b     Il va analyser les images jpg du répertoire pour vérifier si sont bien des images JPG valides.
-        Principalement il recherchera les images corrompues ou mal encodées avec la mauvaise extension.
-        en cas d'image corrompue il listera les fichiers dans un rapport d'erreur et s'arrêtera.
-    1.c     il va vérifier et unifier leurs largeurs et leurs résolutions DPI en recherchant quelle sont les plus utilisées.
-    1.d     Il va vérifier si un assemblage d'images est déjà présent dans le répertoire et le supprimer !
-        Attention si des fichiers avec $prefix="WebToon n°" sont présent dans le répertoire il les éffacera !
-    1.e     Il va renommer les images s'il y a du padding dans les noms de fichiers.(1.jpg,2.jpg,..,10.jpg en 01.jpg,02.jpg,..,10.jpg)
-    1.f     il recherchera les espaces horizontaux de couleurs unies de plus de 50 pixels ($transihaut) pour uniformiser les espaces entre les scènes.
-        Cette opération est assez longue et peut prendre plusieurs minutes en fonction du nombre d'images à traiter.
-        a l'issue de cette opération il calculara le nombre d'images possible a assembler en fonction de la hauteur max définie (pondération) et ajustera la variable $maxHeight
-    1.g     Il assemblera toutes les images à la suite sur une hauteur max de 60000 pixels ($maxHeight) et recherchera des lignes horizontales complètes
-            de couleur unie dans l'image afin de faire une coupure entre deux images.
+Version actuelle : **7.6 — 20 août 2026**
 
-        Lancement du script :
+## Fonctionnalités
 
-    2.En ligne de commande il est possible de lancer le scripts directement en ligne de commande avec les paramètres suivants : 
-            AssembJPG.ps1 "C:\Chemin\durépertoire\aassember" "true1" "true1" "true1"
-                1er paramètre : Chemin du répertoire à assembler
-                2ème paramètre : true pour uniformiser les largeurs des images
-                3ème paramètre : true pour uniformiser les résolutions DPI des images
-                4ème paramètre : true pour uniformiser les espaces entre les scènes
+Le traitement comprend les opérations suivantes :
 
-    2.b Il est possible de double cliquer directement sur le script pour le lancer la sélection du choix des paramètres se fera à l'exécution
-	
-    2.c Lancer le script depuis le menu contextuel de l'explorateur de fichier en ajoutant une clé dans le registre.
-	    Ajouter la clé dans le registre pour pouvoir le lancer depuis le menu contextuel: (copier/coller le texte ci-dessous dans un fichier .reg)
-			Windows Registry Editor Version 5.00
+1. recherche récursive des images présentes dans le dossier et ses sous-dossiers ;
+2. vérification du format réel des fichiers `.jpg` et `.jpeg` à partir de leur signature ;
+3. détection des images portant une mauvaise extension ;
+4. conversion des fichiers WebP, PNG, JPEG et GIF en JPG avec ImageMagick ;
+5. renommage avec ajout de zéros devant les noms numériques afin de conserver leur ordre ;
+6. uniformisation facultative de la largeur des images ;
+7. uniformisation facultative de leur résolution DPI ;
+8. détection et réduction facultative des espaces horizontaux de couleur uniforme entre les scènes ;
+9. répartition pondérée des images dans plusieurs assemblages ;
+10. création des fichiers assemblés avec une hauteur maximale de **55 000 pixels**.
 
-			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG]
-			@=""
-			"MUIVerb"="Assemble les images JPG verticalement"
-            "Icon"=hex(2):25,00,53,00,79,00,73,00,74,00,65,00,6d,00,52,00,6f,00,6f,00,74,\
-            00,25,00,5c,00,53,00,79,00,73,00,74,00,65,00,6d,00,33,00,32,00,5c,00,41,00,\
-            73,00,73,00,65,00,6d,00,62,00,6c,00,65,00,4a,00,50,00,47,00,2e,00,69,00,63,\
-            00,6f,00,00,00
-			"Position"="1"
+## Avertissement important
 
-			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG\command]
-			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Renaud\Scripts\AssembleJPG.ps1" "%1" "true" "true" "False"""
-			
-			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG]
-			@=""
-			"MUIVerb"="Assemble les images JPG verticalement et transitions"
-            "Icon"=hex(2):25,00,53,00,79,00,73,00,74,00,65,00,6d,00,52,00,6f,00,6f,00,74,\
-            00,25,00,5c,00,53,00,79,00,73,00,74,00,65,00,6d,00,33,00,32,00,5c,00,41,00,\
-            73,00,73,00,65,00,6d,00,62,00,6c,00,65,00,4a,00,50,00,47,00,2e,00,69,00,63,\
-            00,6f,00,00,00
-			"Position"="1"
+> Le script modifie directement le contenu du dossier traité.
 
-			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG\command]
-			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Renaud\Scripts\AssembleJPG.ps1" "%1" "true" "true" "true"""
-			
+- Les fichiers WebP, PNG, JPEG et GIF convertis en JPG sont supprimés après leur conversion.
+- Les images peuvent être redimensionnées lorsque l’uniformisation des largeurs est activée.
+- Les anciens assemblages nommés `WebToonXXX.jpg` sont supprimés avant la création des nouveaux fichiers.
+- Il est fortement recommandé de travailler sur une copie de vos images originales.
 
-            (fin du .reg il faut garder les 2 lignes vides à la fin du fichier l'enregistrer et clique droit pour le fusionner au registre)
-            (copier l'icon Assemble.jpg dans le répertoire C:\System32\system32\)
+## Prérequis
 
-        Pré-requis pour le bon fonctionnement du script :
-    3.a Le script nécessite d'avoir PowerShell 7 ou supérieur d'installé sur votre machine.
-        Vous pouvez le télécharger ici : https://learn.microsoft.com/fr-fr/powershell/scripting/install/installing-powershell-on-windows
-        Après l'installation de PowerShell 7 il faudra peut être modifier la ligne de commande dans le registre pour pointer vers le bon exécutable 
-        (exemple : C:\Program Files\PowerShell\7\pwsh.exe -File C:\Users\'votre nom de compte'\Scripts\AssembleJPG.ps1 "%1" "true" "true" "false")
+- Windows 10 ou Windows 11 ;
+- [PowerShell 7 ou supérieur](https://learn.microsoft.com/fr-fr/powershell/scripting/install/installing-powershell-on-windows) ;
+- [ImageMagick](https://imagemagick.org/) avec `magick.exe` installé dans `C:\Program Files`.
 
-    3.b Pour la conversion d'image le script utilise imagemagick.
-        vous devez ouvrir une fenêtre PowerShell en tant qu'administrateur et exécuter la commande suivante :
-		    Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.WebClient]::New().DownloadString('https://chocolatey.org/install.ps1') | Invoke-Expression
-		et après :
-                choco install imagemagick --acceptlicence --yes		
-		Note:  l'installation échouera si une précédente installation est dans "C:\ProgramData\chocolatey" est présente il faudra supprimer ou renommer ce 
-        répertoire manuellement.            
+### Installation de PowerShell 7
 
-        Problème possible lors du lancement du script :
-	4.a En cas d'interdiction de lancement des scripts:
-			S'il y a une interdiction c'est que la politique de sécurité actuelle doit être "Restricted" qui est la valeur par défaut sous Windows.
-            Pour la modifier, vous devez ouvrir une fenêtre PowerShell en tant qu'administrateur .
-			Cliquez sur "Démarrer" puis saisissez "powershell", faites clic droit sur "Windows PowerShell" et cliquez sur "Exécuter en tant qu'Administrateur"
-			Utilisez la commande suivante : "Set-ExecutionPolicy Unrestricted"
-			Lorsqu'on vous demande de confirmer la modification, indiquez "O" pour Oui et appuyez sur Entrée et relancer le script ".\ConvertArchive.ps1"
+Dans un terminal Windows, exécutez :
+
+```powershell
+winget install --id Microsoft.PowerShell --exact
+```
+
+### Installation d’ImageMagick
+
+```powershell
+winget install --id ImageMagick.ImageMagick --exact
+```
+
+Après l’installation d’ImageMagick, fermez puis rouvrez PowerShell afin que le programme soit correctement détecté.
+
+## Téléchargement
+
+Téléchargez les fichiers suivants depuis ce dépôt :
+
+- `AssembleJPG.ps1` ;
+- `AssembleJPG.ico` si vous souhaitez installer le raccourci dans le menu contextuel de l’Explorateur Windows.
+
+Vous pouvez également utiliser l’archive proposée dans la section [Releases](https://github.com/RenaudSub/AssembleJPG/releases).
+
+## Utilisation interactive
+
+Ouvrez PowerShell 7 dans le dossier contenant le script puis exécutez :
+
+```powershell
+pwsh.exe -ExecutionPolicy Bypass -File ".\AssembleJPG.ps1"
+```
+
+Le script demande successivement si vous souhaitez :
+
+- uniformiser la largeur des images ;
+- uniformiser leur résolution DPI ;
+- uniformiser les espaces entre les scènes.
+
+Une fenêtre permet ensuite de sélectionner le dossier à traiter.
+
+## Utilisation en ligne de commande
+
+Le script accepte quatre arguments positionnels :
+
+```powershell
+pwsh.exe -ExecutionPolicy Bypass -File ".\AssembleJPG.ps1" `
+    "C:\Chemin\du\Webtoon" `
+    "true" `
+    "true" `
+    "true"
+```
+
+| Position | Valeur | Fonction |
+| ---: | --- | --- |
+| 1 | Chemin | Dossier contenant les images à assembler |
+| 2 | `true` ou `false` | Uniformiser la largeur des images |
+| 3 | `true` ou `false` | Uniformiser la résolution DPI |
+| 4 | `true` ou `false` | Uniformiser les espaces entre les scènes |
+
+Si les trois options ne sont pas fournies, le script les demande de manière interactive.
+
+## Ajout au menu contextuel de l’Explorateur Windows
+
+Le menu contextuel permet de lancer AssembleJPG directement en effectuant un clic droit sur un dossier.
+
+### 1. Copier les fichiers
+
+Créez le dossier suivant :
+
+```text
+C:\Scripts\AssembleJPG
+```
+
+Copiez-y :
+
+```text
+AssembleJPG.ps1
+AssembleJPG.ico
+```
+
+### 2. Créer le fichier d’installation
+
+Copiez le contenu suivant dans un fichier nommé `Installer-AssembleJPG.reg` :
+
+```registry
+Windows Registry Editor Version 5.00
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\AssembleJPG]
+"MUIVerb"="Assembler les images avec AssembleJPG"
+"Icon"="C:\\Scripts\\AssembleJPG\\AssembleJPG.ico"
+
+[HKEY_CURRENT_USER\Software\Classes\Directory\shell\AssembleJPG\command]
+@="\"C:\\Program Files\\PowerShell\\7\\pwsh.exe\" -NoProfile -ExecutionPolicy Bypass -File \"C:\\Scripts\\AssembleJPG\\AssembleJPG.ps1\" \"%1\" \"true\" \"true\" \"true\""
+```
+
+Double-cliquez ensuite sur le fichier `.reg` et confirmez son importation.
+
+Cette commande active les trois traitements facultatifs. Pour désactiver l’un d’eux, remplacez la valeur `true` correspondante par `false` dans la commande.
+
+Le paramètre `-ExecutionPolicy Bypass` ne s’applique qu’à ce lancement du script. Il n’est donc pas nécessaire de modifier globalement la stratégie d’exécution de Windows avec `Set-ExecutionPolicy Unrestricted`.
+
+### Désinstallation du menu contextuel
+
+Créez un fichier nommé `Desinstaller-AssembleJPG.reg` contenant :
+
+```registry
+Windows Registry Editor Version 5.00
+
+[-HKEY_CURRENT_USER\Software\Classes\Directory\shell\AssembleJPG]
+```
+
+Double-cliquez sur ce fichier et confirmez sa fusion pour retirer l’entrée du menu contextuel.
+
+## Réglages avancés
+
+Les principales valeurs modifiables se trouvent au début du script :
+
+| Variable | Valeur par défaut | Description |
+| --- | ---: | --- |
+| `$prefix` | `WebToon` | Préfixe des fichiers créés |
+| `$maxHeight` | `55000` | Hauteur maximale d’un assemblage |
+| `$transihaut` | `70` | Hauteur conservée entre deux scènes |
+| `$tauxvariahorizontal` | `6` | Tolérance de variation des couleurs |
+| `$pasrecherche` | `5` | Intervalle entre les lignes analysées |
+| `$global:nbexclu` | `5` | Marge latérale ignorée pendant l’analyse |
+| `$global:nbexclu2` | `80` | Marge latérale ignorée pendant l’assemblage |
+| `$ponderation` | `$true` | Active la répartition pondérée des images |
+
+Une valeur plus faible pour `$pasrecherche` améliore la précision de la détection, mais augmente le temps de traitement.
+
+## Formats pris en charge
+
+| Format d’entrée | Traitement |
+| --- | --- |
+| JPG | Vérification puis assemblage |
+| JPEG | Conversion en JPG |
+| WebP | Conversion en JPG |
+| PNG | Conversion en JPG |
+| GIF | Conversion en JPG |
+
+Pour les GIF animés, le résultat dépend du comportement d’ImageMagick lors de la conversion en JPG, un format qui ne prend pas en charge l’animation.
+
+## Dépannage
+
+### ImageMagick n’est pas détecté
+
+Vérifiez que `magick.exe` est installé sous `C:\Program Files`, puis relancez PowerShell.
+
+Vous pouvez rechercher son emplacement avec :
+
+```powershell
+Get-ChildItem "C:\Program Files" -Filter magick.exe -Recurse -ErrorAction SilentlyContinue
+```
+
+### Le lancement du script est bloqué
+
+Utilisez un lancement ponctuel avec :
+
+```powershell
+pwsh.exe -ExecutionPolicy Bypass -File ".\AssembleJPG.ps1"
+```
+
+Si le fichier téléchargé est marqué comme provenant d’Internet, vous pouvez également le débloquer :
+
+```powershell
+Unblock-File ".\AssembleJPG.ps1"
+```
+
+### Une image est signalée comme corrompue
+
+Le script s’arrête lorsqu’un fichier portant l’extension `.jpg` ou `.jpeg` possède un format inconnu. Ouvrez ou reconvertissez manuellement le fichier indiqué, puis relancez le traitement.
+
+## Sécurité
+
+Avant d’exécuter un script téléchargé sur Internet, vous pouvez consulter son contenu et calculer son empreinte SHA-256 :
+
+```powershell
+Get-FileHash ".\AssembleJPG.ps1" -Algorithm SHA256
+```
+
+Comparez cette valeur avec celle indiquée dans la Release correspondante.
+
+## Auteur
+
+Développé par **Renaud SUBRINI**.
+
+- Site : [logisub.com](https://logisub.com/)
+- Contact : `contact@infosub.fr`
+
+Première version publiée le 28 décembre 2024.
+
+Et vive l’ASCII art et les Amstrad CPC !
+
+## Licence
+
+Ce projet est distribué sous la licence **GNU General Public License v3.0**.
+
+Vous pouvez l’utiliser, l’étudier, le modifier et le redistribuer selon les conditions décrites dans le fichier [`LICENSE`](LICENSE). Toute version modifiée redistribuée doit rester sous cette même licence et conserver son code source accessible.

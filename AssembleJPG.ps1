@@ -62,7 +62,7 @@
 			"Position"="1"
 
 			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG\command]
-			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Renaud\Scripts\AssembleJPG.ps1" "%1" "true" "true" "False"""
+			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Chemindu\Scripts\AssembleJPG.ps1" "%1" "true" "true" "False"""
 			
 			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG]
 			@=""
@@ -74,7 +74,7 @@
 			"Position"="1"
 
 			[HKEY_CLASSES_ROOT\Folder\shell\AssembleJPG\command]
-			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Renaud\Scripts\AssembleJPG.ps1" "%1" "true" "true" "true"""
+			@=""C:\Program Files\PowerShell\7\pwsh.exe" -ExecutionPolicy Bypass -File "C:\Users\Chemindu\Scripts\AssembleJPG.ps1" "%1" "true" "true" "true"""
 			
 
             (fin du .reg il faut garder les 2 lignes vides à la fin du fichier l'enregistrer et clique droit pour le fusionner au registre)
@@ -115,8 +115,8 @@
 $OutputEncoding = [System.Text.Encoding]::UTF8
 # Variables modifiable par l'utilisateur :
 $prefix = "WebToon"                 # Préfixe des fichiers à assembler
-$maxHeight = 59000                  # Défini la hauteur max des assemblages (au delà de 65000 pixels plantage limite du format JPG)
-$transihaut = 60                    # Hauteur de la zone de transition à conserver (en pixels) entre les images assemblées                       
+$maxHeight = 55000                  # Défini la hauteur max des assemblages (au delà de 65000 pixels plantage limite du format JPG)
+$transihaut = 70                    # Hauteur de la zone de transition à conserver (en pixels) entre les images assemblées                       
 $tauxvariahorizontal = 6            # Tolérance de variation des couleurs pour la détection d'une ligne de transition (en cas de mauvais qualité de l'image il faut l'augmenté ex: 36)
 $pasrecherche = 5                   # Pas d'analyse : si = 1 toutes les lignes si 2 une ligne sur 2 si 3 une ligne sur 3 etc...
 $global:nbexclu = 5                 # Nombre de lignes verticales en pixels à exclure au début et a la fin pour la zone de détection d'une ligne de transition (Certaine image on des bordures noires ou blanches)
@@ -138,7 +138,7 @@ Write-Host "                            /_/   \_\___/___/\___|_| |_| |_|_.__/|_|
 Write-Host "                                                                "
 Write-Host "              📄 Script de conversion des images .webp .png .jpeg en .jpg & Uniformisation des largeurs" -ForegroundColor cyan
 Write-Host "           d'images, des dpi et de l'espace entre les scènes, renommages zéro padding et assemblage vertical" -ForegroundColor cyan
-Write-Host "                            v7.4 du 27.12.2025 par SUBRINI Renaud 📧 contact@infosub.fr" -ForegroundColor yellow
+Write-Host "                            v7.6 du 20.08.2026 par SUBRINI Renaud 📧 contact@infosub.fr" -ForegroundColor yellow
 Write-Host "──────────────────────────────────────────────────────────────────────────────────────────────────────────────────" -ForegroundColor darkgray
 # Charger les assembly
 Add-Type -AssemblyName System.Drawing
@@ -247,11 +247,12 @@ function Merge-Images { param ( [string]$directoryPath )
 	$listwebpFiles = Get-ChildItem -LiteralPath $directoryPath -Filter *.webp -Recurse
 	$listpngFiles = Get-ChildItem -LiteralPath $directoryPath -Filter *.png -Recurse
 	$listjpegFiles = Get-ChildItem -LiteralPath $directoryPath -Filter *.jpeg -Recurse
+    $listgifFiles = Get-ChildItem -LiteralPath $directoryPath -Filter *.gif -Recurse
 	$jpgCountl = $listjpgFiles.Count
 	$webpCountl = $listwebpFiles.Count
 	$pngCountl = $listpngFiles.Count
 	$jpegCountl = $listjpegFiles.Count
-	$totalimagefile = ($listjpgFiles.Count) + ($listwebpFiles.Count) + ($listpngFiles.Count) + ($listjpegFiles.Count)
+	$totalimagefile = ($listjpgFiles.Count) + ($listwebpFiles.Count) + ($listpngFiles.Count) + ($listjpegFiles.Count)+ ($listgifFiles.Count)
 	Write-Host "Analyse du nombre d'images présentes dans le répertoire .jpg:" -ForegroundColor White -NoNewline
 	Write-Host "$jpgCountl" -ForegroundColor green -NoNewline
 	Write-Host "  .webp:" -ForegroundColor White -NoNewline
@@ -375,10 +376,12 @@ foreach ($jf in $jpgFiles) {
 	$webpFiles1 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.webp", [System.IO.SearchOption]::AllDirectories) | Sort-Object
 	$webpFiles2 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.png", [System.IO.SearchOption]::AllDirectories) | Sort-Object
 	$webpFiles3 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.jpeg", [System.IO.SearchOption]::AllDirectories) | Sort-Object
+	$webpFiles4 = [System.IO.Directory]::EnumerateFiles($directoryPath, "*.gif", [System.IO.SearchOption]::AllDirectories) | Sort-Object
 	$imageFiles = @()
 	$imageFiles += $webpFiles1 | ForEach-Object { Get-Item -LiteralPath $_ }
 	$imageFiles += $webpFiles2 | ForEach-Object { Get-Item -LiteralPath $_ }
 	$imageFiles += $webpFiles3 | ForEach-Object { Get-Item -LiteralPath $_ }
+	$imageFiles += $webpFiles4 | ForEach-Object { Get-Item -LiteralPath $_ }
 	$Nbdeficaconv = $imageFiles.Count
 #Chemin vers ImageMagick
 	$imageMagickPath = Get-ChildItem -Path "C:\Program Files\" -Filter "magick.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -ExpandProperty DirectoryName -First 1
@@ -517,8 +520,6 @@ if ($totlargficmod -gt 0) { write-host ""
     $nbficrenom2 = 0
     $tempcompt = 1
     Write-Host "🔍 Démarrage du redimensionnement des images en cours ..." -ForegroundColor green -NoNewline
-        if ($numberOfGroups -eq 1) { $bartotalt = $numberOfGroups} 
-        else { $bartotalt = $numberOfGroups - 1 }
     foreach ($image in $images) { $img = [System.Drawing.Image]::FromFile($image.FullName)
         if ($img.Width -ne $mostCommonWidth) {
         $oldWidth = $img.Width
@@ -762,11 +763,10 @@ $images = Get-ChildItem -LiteralPath "$directoryPath" -Filter "*.jpg" -Recurse |
 $currentHeight = 0
 $maxRollback = 6
 $global:countfilebar3 = ($images.Count)
-$jpegMaxSafeHeight = 65000
 $assemblageIndex = 1
 $assemblageImages = @()
 $maxHeightorig = $maxHeight
-$minCutHeight = 200
+$minCutHeight = 100
 
 if ($ponderation -eq $true) {
     if ($global:hautfintot -gt $maxHeight) {
@@ -916,7 +916,7 @@ if ($assemblageImages.Count -gt 0) {
 # fin de la fonction Merge-Images
 # Fonction pour trouver la ligne de transition dans l'image
 function Find-TransitionLine {
-    param ([System.Drawing.Bitmap]$image, [int]$currentHeight, [int]$maxHeight, [string]$imageName)
+    param ([System.Drawing.Bitmap]$image, [int]$currentHeight, [int]$maxHeight)
     $startY = [Math]::Min($image.Height - 1, $maxHeight - $currentHeight)
     $Pdetect = 10 # tolérance de variation en couleur (ex: 10 ~ ±10 sur 0–255)
     $findstab = 15 # nombre de lignes stables à détecter d'affilée
@@ -1051,7 +1051,7 @@ function ProcImage { param ( [string]$imagePath )
                     $transitions += [PSCustomObject]@{
                         Start = $transitionStart
                         Height = $transitionHeight }}
-                BarProgress -barprog $y -bartotal $barbitmapt -barLength 40 -bartext1 "" -bartext2 "$Global:ficomp/$Global:imageCountG ⏳ Analyse des transitions dans le fichier $fileNametemp..." -bartext3 "" -barcolor 1
+                BarProgress -barprog $y -bartotal $barbitmapt -barLength 40 -bartext1 "" -bartext2 "$Global:ficomp/$Global:imageCountG ⏳ Analyse des transitions dans le fichier ...$fileNametemp" -bartext3 "" -barcolor 1
                 $global:hautori = $barbitmapt }} return $transitions}
     $startY = 0
     $transitions = DetectTransitions -bitmap $bitmap -startY $startY
@@ -1222,12 +1222,6 @@ Write-Host "✅ Le traitement des images a pris au total :🕒 $($formattedDurat
 Write-Host ""
 Write-Host "✅ Création de $($global:barnbimg-1) fichiers assemblés avec succès ! ✌" -ForegroundColor Cyan
 Write-Host ""
-Write-Host ""
-Write-Host "😍 Vivement la lecture de votre webtoon préféré ! 📚 😄 Longue vie aux webtoons ! 🚀 🌟"
-Write-Host ""
-Write-Host "😄 N'oublions pas l'ascii art ! 🎨 😍 et l'AMSTRAD CPC 464 😄"
-Write-Host ""
-Write-Host "🙏 Merci d'avoir utilisé ce script et merci PowerSHELL 😊"
 Write-Host ""
 if ($reducespac -eq $true -and ($global:hautoritot -gt 0) -and ($global:hautfintot -gt 0)) {Write-Host "Pour un ratio moyen $hautratio2% pour une rédutction de $($global:hautoritot)p a $($global:hautfintot)p"
 Write-Host ""}
