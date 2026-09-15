@@ -1,9 +1,11 @@
 # AssembleJPG
 
 **AssembleJPG** est un script PowerShell pour Windows permettant d’assembler automatiquement les images d’un webtoon en une ou plusieurs grandes images JPG verticales.
+[Site Web](https://logisub.com/scripts.html)
 
 Le script vérifie les fichiers, convertit les formats compatibles, uniformise si nécessaire la largeur et la résolution des images, réduit les espaces entre les scènes et crée des fichiers `WebToon001.jpg`, `WebToon002.jpg`, etc.
 
+Démonstration en vidéo:
 [![Voir la démonstration](https://logisub.com/videos/previewassemble.jpg "Cliquez pour voir la vidéo")](https://logisub.com/videos/AssembleJPG.mp4)
 Version actuelle : **7.6 — 20 août 2026**
 
